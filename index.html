@@ -425,7 +425,7 @@
     </section>
 
     <!-- Блок статистики -->
-    <section class="stats" aria-label="Статистика за это устройство">
+    <section class="stats" aria-label="Общая статистика по всем пользователям">
       <h2 class="stats__title">Статистика</h2>
 
       <div class="stats__row">
@@ -441,7 +441,7 @@
       </div>
 
       <div>
-        <div class="stats__list-title">Последние сокращённые ссылки (на этом устройстве)</div>
+        <div class="stats__list-title">Последние сокращённые ссылки (все пользователи)</div>
         <ul id="statLastList" class="stats__list-items"></ul>
       </div>
     </section>
@@ -568,43 +568,7 @@
       qrContainer.classList.add("qr--visible");
     }
 
-    // ===== ПРОСТАЯ СТАТИСТИКА (сохранение в localStorage) =====
-
-    const STATS_STORAGE_KEY = "simpleLinkShortenerStatsV1";
-
-    function loadStats() {
-      try {
-        const raw = localStorage.getItem(STATS_STORAGE_KEY);
-        if (!raw) {
-          return {
-            totalShortened: 0,
-            qrGenerated: 0,
-            lastLinks: [],
-          };
-        }
-        const parsed = JSON.parse(raw);
-        return {
-          totalShortened: parsed.totalShortened || 0,
-          qrGenerated: parsed.qrGenerated || 0,
-          lastLinks: Array.isArray(parsed.lastLinks) ? parsed.lastLinks : [],
-        };
-      } catch (e) {
-        console.warn("Не удалось прочитать статистику, начнём с нуля.", e);
-        return {
-          totalShortened: 0,
-          qrGenerated: 0,
-          lastLinks: [],
-        };
-      }
-    }
-
-    function saveStats(stats) {
-      try {
-        localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(stats));
-      } catch (e) {
-        console.warn("Не удалось сохранить статистику.", e);
-      }
-    }
+    // ===== ОБЩАЯ СТАТИСТИКА (через простой бекенд) =====
 
     function updateStatsUI(stats) {
       const totalShortenedEl = document.getElementById("statTotalShortened");
@@ -622,7 +586,7 @@
       if (listEl) {
         listEl.innerHTML = "";
 
-        if (!stats.lastLinks.length) {
+        if (!stats.lastLinks || !stats.lastLinks.length) {
           const li = document.createElement("li");
           li.className = "stats__list-item";
           li.textContent = "Пока нет сокращённых ссылок.";
@@ -662,37 +626,106 @@
       }
     }
 
-    function formatTime(date) {
-      const d = date instanceof Date ? date : new Date(date);
+    function formatTimeFromIso(isoString) {
+      if (!isoString) return "";
+      const d = new Date(isoString);
+      if (Number.isNaN(d.getTime())) return "";
+
       const hours = String(d.getHours()).padStart(2, "0");
       const minutes = String(d.getMinutes()).padStart(2, "0");
       return `${hours}:${minutes}`;
     }
 
-    function recordShorten(stats, longUrl, shortUrl) {
-      const updated = Object.assign({}, stats);
-      updated.totalShortened += 1;
-
-      const newItem = {
-        original: longUrl,
-        short: shortUrl,
-        time: formatTime(new Date()),
-      };
-
-      const MAX_ITEMS = 5;
-      updated.lastLinks = [newItem].concat(updated.lastLinks || []).slice(0, MAX_ITEMS);
-
-      saveStats(updated);
-      updateStatsUI(updated);
-      return updated;
+    async function fetchStatsFromServer() {
+      try {
+        const response = await fetch("/api/stats");
+        if (!response.ok) {
+          throw new Error("Ошибка при получении статистики.");
+        }
+        const data = await response.json();
+        return {
+          totalShortened: data.totalShortened || 0,
+          qrGenerated: data.qrGenerated || 0,
+          lastLinks: Array.isArray(data.lastLinks) ? data.lastLinks.map(function (item) {
+            return {
+              original: item.original || "",
+              short: item.short || "",
+              time: formatTimeFromIso(item.time),
+            };
+          }) : [],
+        };
+      } catch (error) {
+        console.warn("Не удалось получить общую статистику.", error);
+        return {
+          totalShortened: 0,
+          qrGenerated: 0,
+          lastLinks: [],
+        };
+      }
     }
 
-    function recordQrGenerated(stats) {
-      const updated = Object.assign({}, stats);
-      updated.qrGenerated += 1;
-      saveStats(updated);
-      updateStatsUI(updated);
-      return updated;
+    async function sendShortenEventToServer(longUrl, shortUrl) {
+      try {
+        const response = await fetch("/api/stats/shorten", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ longUrl: longUrl, shortUrl: shortUrl }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Ошибка при обновлении статистики сокращений.");
+        }
+
+        const data = await response.json();
+
+        const stats = {
+          totalShortened: data.totalShortened || 0,
+          qrGenerated: data.qrGenerated || 0,
+          lastLinks: Array.isArray(data.lastLinks) ? data.lastLinks.map(function (item) {
+            return {
+              original: item.original || "",
+              short: item.short || "",
+              time: formatTimeFromIso(item.time),
+            };
+          }) : [],
+        };
+
+        updateStatsUI(stats);
+      } catch (error) {
+        console.warn("Не удалось отправить информацию о сокращении ссылки.", error);
+      }
+    }
+
+    async function sendQrEventToServer() {
+      try {
+        const response = await fetch("/api/stats/qr", {
+          method: "POST",
+        });
+
+        if (!response.ok) {
+          throw new Error("Ошибка при обновлении статистики QR-кодов.");
+        }
+
+        const data = await response.json();
+
+        const stats = {
+          totalShortened: data.totalShortened || 0,
+          qrGenerated: data.qrGenerated || 0,
+          lastLinks: Array.isArray(data.lastLinks) ? data.lastLinks.map(function (item) {
+            return {
+              original: item.original || "",
+              short: item.short || "",
+              time: formatTimeFromIso(item.time),
+            };
+          }) : [],
+        };
+
+        updateStatsUI(stats);
+      } catch (error) {
+        console.warn("Не удалось отправить информацию о QR-коде.", error);
+      }
     }
 
     // ===== ОСНОВНАЯ ЛОГИКА ПРИ ЗАГРУЗКЕ СТРАНИЦЫ =====
@@ -705,9 +738,10 @@
       const copyBtn = document.getElementById("copyBtn");
       const qrContainer = document.getElementById("qrContainer");
 
-      // Загружаем и показываем статистику при старте
-      let stats = loadStats();
-      updateStatsUI(stats);
+      // Загружаем и показываем ОБЩУЮ статистику при старте
+      fetchStatsFromServer().then(function (stats) {
+        updateStatsUI(stats);
+      });
 
       if (!longUrlInput || !shortUrlOutput || !shortenBtn || !qrBtn || !copyBtn) {
         console.error("Не найден один из элементов интерфейса.");
@@ -738,8 +772,8 @@
           shortUrlOutput.value = shortUrl;
           showMessage("Ссылка успешно сокращена.", "success");
 
-          // Обновляем статистику
-          stats = recordShorten(stats, longUrl, shortUrl);
+          // Обновляем ОБЩУЮ статистику на сервере
+          sendShortenEventToServer(longUrl, shortUrl);
         } catch (error) {
           console.error(error);
           showMessage(error.message || "Произошла ошибка при сокращении ссылки.", "error");
@@ -769,8 +803,8 @@
         createQrCode(urlForQr);
         showMessage("QR‑код создан.", "success");
 
-        // Обновляем статистику по QR-кодам
-        stats = recordQrGenerated(stats);
+        // Обновляем ОБЩУЮ статистику по QR-кодам на сервере
+        sendQrEventToServer();
       });
 
       // Обработчик клика по кнопке "Скопировать"
