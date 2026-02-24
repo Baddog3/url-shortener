@@ -1,7 +1,7 @@
 {
   "name": "myfirstsite-link-shortener",
   "version": "1.0.0",
-  "description": "Простой сайт для сокращения ссылок и генерации QR-кодов с общей статистикой.",
+  "description": "Простой сайт для сокращения ссылок и генерации QR-кодов.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -9,8 +9,7 @@
   "keywords": [
     "url-shortener",
     "link-shortener",
-    "qr-code",
-    "stats"
+    "qr-code"
   ],
   "author": "",
   "license": "MIT",

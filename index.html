@@ -131,6 +131,7 @@
       gap: 6px;
       transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
       white-space: nowrap;
+      min-height: 44px;
     }
 
     .button--primary {
@@ -264,92 +265,37 @@
       color: var(--success);
     }
 
-    /* ===== Статистика ===== */
-    .stats {
-      margin-top: 20px;
-      padding-top: 16px;
-      border-top: 1px solid var(--border-color);
-    }
+    /* ===== Мобильная адаптация (маленькие экраны) ===== */
+    @media (max-width: 480px) {
+      body {
+        align-items: flex-start;
+        justify-content: flex-start;
+        padding: 12px;
+      }
 
-    .stats__title {
-      margin: 0 0 10px;
-      font-size: 1rem;
-      font-weight: 600;
-    }
+      .app {
+        padding: 16px 14px 16px;
+        box-shadow:
+          0 12px 28px rgba(15, 23, 42, 0.18),
+          0 0 0 1px rgba(148, 163, 184, 0.18);
+      }
 
-    .stats__row {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
-    }
+      .app__title {
+        font-size: 1.25rem;
+      }
 
-    .stats__item {
-      flex: 1 1 140px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid var(--border-color);
-      background-color: #f9fafb;
-    }
+      .app__subtitle {
+        font-size: 0.85rem;
+      }
 
-    .stats__value {
-      font-size: 1.2rem;
-      font-weight: 600;
-    }
+      .button {
+        width: 100%;
+      }
 
-    .stats__label {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-
-    .stats__list-title {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-    }
-
-    .stats__list-items {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      max-height: 110px;
-      overflow-y: auto;
-    }
-
-    .stats__list-item {
-      font-size: 0.8rem;
-      border-radius: 999px;
-      border: 1px dashed var(--border-color);
-      padding: 6px 10px;
-      background-color: #ffffff;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .stats__list-item-main {
-      display: flex;
-      justify-content: space-between;
-      gap: 6px;
-      align-items: center;
-    }
-
-    .stats__list-short {
-      font-weight: 500;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .stats__list-origin {
-      color: var(--text-muted);
-      font-size: 0.75rem;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      .row--stack-mobile,
+      .result__row {
+        align-items: stretch;
+      }
     }
   </style>
 
@@ -424,27 +370,6 @@
       </div>
     </section>
 
-    <!-- Блок статистики -->
-    <section class="stats" aria-label="Общая статистика по всем пользователям">
-      <h2 class="stats__title">Статистика</h2>
-
-      <div class="stats__row">
-        <div class="stats__item">
-          <div id="statTotalShortened" class="stats__value">0</div>
-          <div class="stats__label">Ссылок сокращено</div>
-        </div>
-
-        <div class="stats__item">
-          <div id="statQrGenerated" class="stats__value">0</div>
-          <div class="stats__label">QR‑кодов создано</div>
-        </div>
-      </div>
-
-      <div>
-        <div class="stats__list-title">Последние сокращённые ссылки (все пользователи)</div>
-        <ul id="statLastList" class="stats__list-items"></ul>
-      </div>
-    </section>
   </main>
 
   <script>
@@ -568,166 +493,6 @@
       qrContainer.classList.add("qr--visible");
     }
 
-    // ===== ОБЩАЯ СТАТИСТИКА (через простой бекенд) =====
-
-    function updateStatsUI(stats) {
-      const totalShortenedEl = document.getElementById("statTotalShortened");
-      const qrGeneratedEl = document.getElementById("statQrGenerated");
-      const listEl = document.getElementById("statLastList");
-
-      if (totalShortenedEl) {
-        totalShortenedEl.textContent = String(stats.totalShortened);
-      }
-
-      if (qrGeneratedEl) {
-        qrGeneratedEl.textContent = String(stats.qrGenerated);
-      }
-
-      if (listEl) {
-        listEl.innerHTML = "";
-
-        if (!stats.lastLinks || !stats.lastLinks.length) {
-          const li = document.createElement("li");
-          li.className = "stats__list-item";
-          li.textContent = "Пока нет сокращённых ссылок.";
-          listEl.appendChild(li);
-          return;
-        }
-
-        stats.lastLinks.forEach(function (item) {
-          const li = document.createElement("li");
-          li.className = "stats__list-item";
-
-          const mainRow = document.createElement("div");
-          mainRow.className = "stats__list-item-main";
-
-          const shortSpan = document.createElement("span");
-          shortSpan.className = "stats__list-short";
-          shortSpan.textContent = item.short;
-
-          const timeSpan = document.createElement("span");
-          timeSpan.className = "stats__list-time";
-          timeSpan.style.fontSize = "0.7rem";
-          timeSpan.style.color = "var(--text-muted)";
-          timeSpan.textContent = item.time;
-
-          mainRow.appendChild(shortSpan);
-          mainRow.appendChild(timeSpan);
-
-          const originDiv = document.createElement("div");
-          originDiv.className = "stats__list-origin";
-          originDiv.textContent = item.original;
-
-          li.appendChild(mainRow);
-          li.appendChild(originDiv);
-
-          listEl.appendChild(li);
-        });
-      }
-    }
-
-    function formatTimeFromIso(isoString) {
-      if (!isoString) return "";
-      const d = new Date(isoString);
-      if (Number.isNaN(d.getTime())) return "";
-
-      const hours = String(d.getHours()).padStart(2, "0");
-      const minutes = String(d.getMinutes()).padStart(2, "0");
-      return `${hours}:${minutes}`;
-    }
-
-    async function fetchStatsFromServer() {
-      try {
-        const response = await fetch("/api/stats");
-        if (!response.ok) {
-          throw new Error("Ошибка при получении статистики.");
-        }
-        const data = await response.json();
-        return {
-          totalShortened: data.totalShortened || 0,
-          qrGenerated: data.qrGenerated || 0,
-          lastLinks: Array.isArray(data.lastLinks) ? data.lastLinks.map(function (item) {
-            return {
-              original: item.original || "",
-              short: item.short || "",
-              time: formatTimeFromIso(item.time),
-            };
-          }) : [],
-        };
-      } catch (error) {
-        console.warn("Не удалось получить общую статистику.", error);
-        return {
-          totalShortened: 0,
-          qrGenerated: 0,
-          lastLinks: [],
-        };
-      }
-    }
-
-    async function sendShortenEventToServer(longUrl, shortUrl) {
-      try {
-        const response = await fetch("/api/stats/shorten", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ longUrl: longUrl, shortUrl: shortUrl }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Ошибка при обновлении статистики сокращений.");
-        }
-
-        const data = await response.json();
-
-        const stats = {
-          totalShortened: data.totalShortened || 0,
-          qrGenerated: data.qrGenerated || 0,
-          lastLinks: Array.isArray(data.lastLinks) ? data.lastLinks.map(function (item) {
-            return {
-              original: item.original || "",
-              short: item.short || "",
-              time: formatTimeFromIso(item.time),
-            };
-          }) : [],
-        };
-
-        updateStatsUI(stats);
-      } catch (error) {
-        console.warn("Не удалось отправить информацию о сокращении ссылки.", error);
-      }
-    }
-
-    async function sendQrEventToServer() {
-      try {
-        const response = await fetch("/api/stats/qr", {
-          method: "POST",
-        });
-
-        if (!response.ok) {
-          throw new Error("Ошибка при обновлении статистики QR-кодов.");
-        }
-
-        const data = await response.json();
-
-        const stats = {
-          totalShortened: data.totalShortened || 0,
-          qrGenerated: data.qrGenerated || 0,
-          lastLinks: Array.isArray(data.lastLinks) ? data.lastLinks.map(function (item) {
-            return {
-              original: item.original || "",
-              short: item.short || "",
-              time: formatTimeFromIso(item.time),
-            };
-          }) : [],
-        };
-
-        updateStatsUI(stats);
-      } catch (error) {
-        console.warn("Не удалось отправить информацию о QR-коде.", error);
-      }
-    }
-
     // ===== ОСНОВНАЯ ЛОГИКА ПРИ ЗАГРУЗКЕ СТРАНИЦЫ =====
     window.addEventListener("DOMContentLoaded", function () {
       // Находим все элементы один раз
@@ -737,11 +502,6 @@
       const qrBtn = document.getElementById("qrBtn");
       const copyBtn = document.getElementById("copyBtn");
       const qrContainer = document.getElementById("qrContainer");
-
-      // Загружаем и показываем ОБЩУЮ статистику при старте
-      fetchStatsFromServer().then(function (stats) {
-        updateStatsUI(stats);
-      });
 
       if (!longUrlInput || !shortUrlOutput || !shortenBtn || !qrBtn || !copyBtn) {
         console.error("Не найден один из элементов интерфейса.");
@@ -771,9 +531,6 @@
           const shortUrl = await shortenUrl(longUrl);
           shortUrlOutput.value = shortUrl;
           showMessage("Ссылка успешно сокращена.", "success");
-
-          // Обновляем ОБЩУЮ статистику на сервере
-          sendShortenEventToServer(longUrl, shortUrl);
         } catch (error) {
           console.error(error);
           showMessage(error.message || "Произошла ошибка при сокращении ссылки.", "error");
@@ -802,9 +559,6 @@
 
         createQrCode(urlForQr);
         showMessage("QR‑код создан.", "success");
-
-        // Обновляем ОБЩУЮ статистику по QR-кодам на сервере
-        sendQrEventToServer();
       });
 
       // Обработчик клика по кнопке "Скопировать"
